@@ -6,6 +6,7 @@ MODEL_NAME = "mixedbread-ai/mxbai-rerank-base-v2"
 
 # Load model at startup
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 model.eval().cuda()
 
