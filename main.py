@@ -6,23 +6,37 @@ MODEL_NAME = "mixedbread-ai/mxbai-rerank-base-v2"
 
 # Load model at startup
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-tokenizer.pad_token = tokenizer.eos_token
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+
+# ✅ Safe fix: define pad_token if missing
+if tokenizer.pad_token is None:
+    if tokenizer.eos_token is not None:
+        tokenizer.pad_token = tokenizer.eos_token
+    else:
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        model.resize_token_embeddings(len(tokenizer))
+
 model.eval().cuda()
 
 def handler(event):
-    try:
-        query = event['input']['query']
-        documents = event['input']['documents']
-        pairs = [f"{query} </s> {doc}" for doc in documents]
+    query = event['input']['query']
+    documents = event['input']['documents']
+    pairs = [f"{query} </s> {doc}" for doc in documents]
 
-        inputs = tokenizer(pairs, return_tensors="pt", padding=True, truncation=True).to("cuda")
+    # ✅ Use padding and truncation safely now
+    inputs = tokenizer(
+        pairs,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=512
+    ).to("cuda")
+
+    with torch.no_grad():
         scores = model(**inputs).logits.view(-1)
 
-        sorted_docs = sorted(zip(documents, scores.tolist()), key=lambda x: x[1], reverse=True)
-        return {"reranked": sorted_docs}
+    reranked = sorted(zip(documents, scores.tolist()), key=lambda x: x[1], reverse=True)
+    return {"reranked": reranked}
 
-    except Exception as e:
-        return {"error": str(e)}
-
+# ✅ Register the handler
 serverless.start({"handler": handler})
