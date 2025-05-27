@@ -3,6 +3,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
 MODEL_NAME = "mixedbread-ai/mxbai-rerank-base-v2"
+
+# Load model and tokenizer at container startup
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 model.eval().cuda()
@@ -19,5 +21,5 @@ def handler(event):
 
     return {"reranked": sorted_docs}
 
-# Start the serverless listener
-serverless.start({"handler": handler})
+# Register the handler for RunPod Serverless
+serverless.start({"handler"
