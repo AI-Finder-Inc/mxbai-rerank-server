@@ -1,17 +1,11 @@
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+FROM python:3.10-slim
 
 # Install dependencies
-RUN apt-get update && apt-get install -y git && \
-    pip install --upgrade pip && \
-    pip install transformers fastapi uvicorn[standard] gunicorn torch
+RUN pip install --no-cache-dir torch transformers runpod
 
-# Copy app files
+# Add app code
 WORKDIR /app
-COPY . /app
+COPY main.py .
 
-# Expose FastAPI app via gunicorn with Uvicorn workers
-CMD ["gunicorn", "main:app", "-k", "uvicorn.workers.UvicornWorker", "--workers", "4", "--bind", "0.0.0.0:8000"]
+# Run the job handler
+CMD ["python", "main.py"]
