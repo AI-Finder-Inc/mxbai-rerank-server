@@ -1,26 +1,23 @@
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
+from runpod import serverless
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
 MODEL_NAME = "mixedbread-ai/mxbai-rerank-base-v2"
-
-# Load model and tokenizer once at startup
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 model.eval().cuda()
 
-app = FastAPI()
+def handler(event):
+    query = event["input"]["query"]
+    documents = event["input"]["documents"]
 
-class RerankRequest(BaseModel):
-    query: str
-    documents: list[str]
-
-@app.post("/rerank")
-async def rerank(req: RerankRequest):
     with torch.no_grad():
-        pairs = [f"{req.query} </s> {doc}" for doc in req.documents]
+        pairs = [f"{query} </s> {doc}" for doc in documents]
         inputs = tokenizer(pairs, return_tensors="pt", padding=True, truncation=True).to("cuda")
         scores = model(**inputs).logits.view(-1)
-        sorted_docs = sorted(zip(req.documents, scores.tolist()), key=lambda x: x[1], reverse=True)
+        sorted_docs = sorted(zip(documents, scores.tolist()), key=lambda x: x[1], reverse=True)
+
     return {"reranked": sorted_docs}
+
+# Start the serverless listener
+serverless.start({"handler": handler})
